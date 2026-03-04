@@ -4,26 +4,13 @@ from __future__ import annotations
 
 import re
 import time
-from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
 
 from scraper.date_utils import parse_date
 
-BASE_URL = "https://rationalreminder.ca"
 USER_AGENT = "RationalReminderNotetaker/1.0 (personal automation)"
-
-
-def _get_html(html: str | None, html_path: Path | None, url: str) -> str:
-    """Resolve HTML from optional string, file path, or fetch URL."""
-    if html is not None:
-        return html
-    if html_path is not None and html_path.exists():
-        return html_path.read_text(encoding="utf-8", errors="replace")
-    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
-    resp.raise_for_status()
-    return resp.text
 
 
 def _extract_title(soup: BeautifulSoup) -> str:
@@ -60,27 +47,29 @@ def _extract_date(soup: BeautifulSoup) -> str | None:
     return None
 
 
+# "Read the Transcript" with optional colon, flexible whitespace, case-insensitive
+TRANSCRIPT_MARKER_RE = re.compile(
+    r"Read\s+the\s+Transcript\s*:?\s*",
+    re.IGNORECASE,
+)
+
 def _extract_transcript(soup: BeautifulSoup) -> str:
     """
-    Extract transcript: content after "Read The Transcript:" or "Read the Transcript:"
-    until next ## or disclaimer. Returns empty string if not found.
+    Extract transcript: content after "Read the Transcript" (with optional colon)
+    until next ## or disclaimer. Handles casing and whitespace variations.
     """
     text = soup.get_text(separator="\n")
-    # Match either casing
-    for marker in ("Read The Transcript:", "Read the Transcript:"):
-        idx = text.find(marker)
-        if idx != -1:
-            start = idx + len(marker)
-            chunk = text[start:].lstrip()
-            # Stop at next ## or Disclaimer / Is there an error
-            stop_markers = ("\n## ", "\nDisclaimer", "\nIs there an error", "Participate in our Community")
-            end = len(chunk)
-            for stop in stop_markers:
-                pos = chunk.find(stop)
-                if pos != -1 and pos < end:
-                    end = pos
-            return chunk[:end].strip()
-    return ""
+    match = TRANSCRIPT_MARKER_RE.search(text)
+    if not match:
+        return ""
+    chunk = text[match.end() :].lstrip()
+    stop_markers = ("\n## ", "\nDisclaimer", "\nIs there an error", "Participate in our Community")
+    end = len(chunk)
+    for stop in stop_markers:
+        pos = chunk.find(stop)
+        if pos != -1 and pos < end:
+            end = pos
+    return chunk[:end].strip()
 
 
 def _extract_key_points(soup: BeautifulSoup) -> list[str]:
@@ -106,18 +95,15 @@ def _extract_key_points(soup: BeautifulSoup) -> list[str]:
     return points
 
 
-def parse_episode_html(
-    html: str | None = None,
-    html_path: Path | None = None,
-    url: str = "",
-) -> dict:
+def parse_episode_html(url: str) -> dict:
     """
-    Parse episode page HTML. Provide one of: html, html_path, or url (to fetch).
+    Fetch the given episode page URL and parse.
     Returns dict with keys: title, date_ymd, transcript, key_points.
     transcript and key_points may be empty; date_ymd may be None.
     """
-    raw = _get_html(html, html_path, url or f"{BASE_URL}/podcast/397")
-    soup = BeautifulSoup(raw, "html.parser")
+    resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
     date_ymd = _extract_date(soup)
     return {
         "title": _extract_title(soup),
@@ -127,8 +113,7 @@ def parse_episode_html(
     }
 
 
-def fetch_episode(slug: str, base_url: str = BASE_URL, delay_seconds: float = 1.0) -> dict:
-    """Fetch episode page by slug and parse. Adds a small delay to be polite."""
-    url = f"{base_url.rstrip('/')}/podcast/{slug}"
+def fetch_episode(url: str, delay_seconds: float = 1.0) -> dict:
+    """Fetch episode page by URL and parse. Adds a small delay to be polite."""
     time.sleep(delay_seconds)
-    return parse_episode_html(url=url)
+    return parse_episode_html(url)

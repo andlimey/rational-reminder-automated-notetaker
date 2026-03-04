@@ -25,6 +25,11 @@ class TestFrontmatter:
         assert "- rational_reminder" in out
         assert "## Summary" in out
 
+    def test_build_markdown_appends_episode_url_when_provided(self):
+        out = build_markdown("2025-03-05", "## Summary\n\nGood.", episode_url="https://rationalreminder.ca/podcast/397")
+        assert out.endswith("\n\n---\n\nhttps://rationalreminder.ca/podcast/397")
+        assert "## Summary" in out
+
 
 class TestFilenameSanitization:
     def test_episode_number_prefixed(self):

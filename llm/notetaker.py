@@ -21,14 +21,21 @@ def _get_client(api_key: str | None = None):
     return genai.GenerativeModel(DEFAULT_MODEL)
 
 
-def _build_prompt(title: str, date_ymd: str | None, transcript: str, key_points: list[str] | None = None) -> str:
+def _build_prompt(
+    title: str,
+    date_ymd: str | None,
+    transcript: str,
+    key_points: list[str] | None = None,
+    episode_url: str | None = None,
+) -> str:
     key_points_block = ""
     if key_points:
         key_points_block = "\n\n**Key points from the episode (for reference):**\n" + "\n".join(f"- {p}" for p in key_points[:20])
+    url_block = f"\n**Episode URL:** {episode_url}" if episode_url else ""
     return f"""You are helping create concise notes for a podcast listener. Below is the title, date, and full transcript of a Rational Reminder podcast episode.
 
 **Title:** {title}
-**Date:** {date_ymd or 'Unknown'}{key_points_block}
+**Date:** {date_ymd or 'Unknown'}{url_block}{key_points_block}
 
 **Transcript:**
 {transcript[:1000000]}
@@ -51,6 +58,7 @@ def generate_notes(
     date_ymd: str | None,
     transcript: str,
     key_points: list[str] | None = None,
+    episode_url: str | None = None,
     api_key: str | None = None,
 ) -> str:
     """
@@ -61,7 +69,7 @@ def generate_notes(
         return "## Summary\n\nTest"
     if not transcript or not transcript.strip():
         return "*No transcript available for this episode.*"
-    prompt = _build_prompt(title, date_ymd, transcript, key_points)
+    prompt = _build_prompt(title, date_ymd, transcript, key_points, episode_url)
     model = _get_client(api_key)
 
     max_retries = 5

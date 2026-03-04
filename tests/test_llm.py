@@ -19,6 +19,13 @@ def test_build_prompt_includes_key_points_when_provided():
     assert "Point two" in prompt
 
 
+def test_build_prompt_includes_episode_url_when_provided():
+    url = "https://rationalreminder.ca/podcast/397"
+    prompt = _build_prompt("Title", "2026-01-01", "Transcript.", None, episode_url=url)
+    assert url in prompt
+    assert "Episode URL" in prompt
+
+
 @patch("llm.notetaker._get_client")
 @patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)
 def test_generate_notes_returns_mock_response(mock_get_client):
@@ -39,6 +46,24 @@ def test_generate_notes_returns_mock_response(mock_get_client):
     assert "Test Episode" in call_args
     assert "2026-02-19" in call_args
     assert "Hello" in call_args
+
+
+@patch("llm.notetaker._get_client")
+@patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)
+def test_generate_notes_passes_episode_url_into_prompt(mock_get_client):
+    mock_model = MagicMock()
+    mock_model.generate_content.return_value = MagicMock(text="## Summary\n\nDone.")
+    mock_get_client.return_value = mock_model
+    episode_url = "https://rationalreminder.ca/podcast/397"
+    generate_notes(
+        title="Ep 397",
+        date_ymd="2026-02-19",
+        transcript="Content here.",
+        episode_url=episode_url,
+        api_key="fake",
+    )
+    call_args = mock_model.generate_content.call_args[0][0]
+    assert episode_url in call_args
 
 
 @patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)

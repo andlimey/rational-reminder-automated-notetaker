@@ -22,6 +22,7 @@ from state import is_processed, mark_processed
 load_dotenv()
 
 DIRECTORY_URL = "https://rationalreminder.ca/podcast-directory"
+PODCAST_BASE_URL = "https://rationalreminder.ca"
 PROCESSED_EPISODES_PATH = Path("data/processed_episodes.json")
 EPISODES_TO_PROCESS_PATH = Path("data/episodes_to_process.txt")
 DELAY_BETWEEN_EPISODES = 1.5
@@ -65,9 +66,10 @@ def main() -> None:
 
     for ep in to_process:
         slug = ep["slug"]
+        episode_url = f"{PODCAST_BASE_URL}/podcast/{slug}"
         print(f"Processing episode {slug}...")
         try:
-            data = fetch_episode(slug, delay_seconds=DELAY_BETWEEN_EPISODES)
+            data = fetch_episode(episode_url, delay_seconds=DELAY_BETWEEN_EPISODES)
         except Exception as e:
             print(f"  Failed to fetch: {e}")
             continue
@@ -88,13 +90,14 @@ def main() -> None:
                 date_ymd=date_ymd,
                 transcript=transcript,
                 key_points=key_points,
+                episode_url=episode_url,
             )
         except Exception as e:
             print(f"  Failed to generate notes: {e}")
             continue
 
         date_for_frontmatter = date_ymd or "0000-01-01"
-        full_md = build_markdown(date_for_frontmatter, notes_body)
+        full_md = build_markdown(date_for_frontmatter, notes_body, episode_url=episode_url)
         filename = markdown_filename(slug, title)
 
         try:

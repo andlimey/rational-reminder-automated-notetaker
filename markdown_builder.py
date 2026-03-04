@@ -1,5 +1,7 @@
 """Build markdown with YAML frontmatter and sanitize filenames for Drive/filesystem."""
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
 
@@ -27,9 +29,12 @@ def sanitize_filename(title: str, episode_slug: str, max_length: int = DEFAULT_M
     return cleaned
 
 
-def build_markdown(date_ymd: str, body: str) -> str:
-    """Full markdown content: frontmatter + body."""
-    return build_frontmatter(date_ymd) + body
+def build_markdown(date_ymd: str, body: str, episode_url: str | None = None) -> str:
+    """Full markdown content: frontmatter + body; optionally append --- and episode URL."""
+    out = build_frontmatter(date_ymd) + body
+    if episode_url:
+        out += "\n\n---\n\n" + episode_url
+    return out
 
 
 def markdown_filename(episode_slug: str, title: str, max_length: int = DEFAULT_MAX_FILENAME_LEN) -> str:

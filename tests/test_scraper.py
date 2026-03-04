@@ -2,6 +2,7 @@
 
 import pytest
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 from scraper.date_utils import parse_date
 from scraper.episode import parse_episode_html
@@ -9,6 +10,7 @@ from scraper.directory import parse_directory_html, _slug_from_href
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+EPISODE_397_URL = "https://rationalreminder.ca/podcast/397"
 
 
 class TestDateUtils:
@@ -32,7 +34,7 @@ class TestDateUtils:
 
 
 class TestEpisodeParser:
-    """Episode HTML parsing using fixture episode_397.html."""
+    """Episode HTML parsing using fixture episode_397.html. Mock requests.get to avoid live HTTP."""
 
     @pytest.fixture
     def episode_html(self):
@@ -41,8 +43,12 @@ class TestEpisodeParser:
             pytest.skip("Fixture episode_397.html not found")
         return path.read_text(encoding="utf-8")
 
-    def test_parse_from_html_string(self, episode_html):
-        data = parse_episode_html(html=episode_html)
+    def test_parse_from_url_with_fixture_html(self, episode_html):
+        mock_resp = MagicMock()
+        mock_resp.text = episode_html
+        mock_resp.raise_for_status = MagicMock()
+        with patch("scraper.episode.requests.get", return_value=mock_resp):
+            data = parse_episode_html(EPISODE_397_URL)
         assert "Hendrik Bessembinder" in data["title"]
         assert "Rational Reminder" not in data["title"]
         assert data["date_ymd"] == "2026-02-19"
@@ -50,11 +56,12 @@ class TestEpisodeParser:
         assert "Disclaimer" not in data["transcript"]
         assert len(data["key_points"]) >= 1
 
-    def test_parse_from_html_path(self, episode_html):
-        path = FIXTURES_DIR / "episode_397.html"
-        if not path.exists():
-            pytest.skip("Fixture not found")
-        data = parse_episode_html(html_path=path)
+    def test_parse_from_url_fixture_has_date_and_transcript(self, episode_html):
+        mock_resp = MagicMock()
+        mock_resp.text = episode_html
+        mock_resp.raise_for_status = MagicMock()
+        with patch("scraper.episode.requests.get", return_value=mock_resp):
+            data = parse_episode_html(EPISODE_397_URL)
         assert data["date_ymd"] == "2026-02-19"
         assert data["transcript"].strip()
 
@@ -65,7 +72,11 @@ class TestEpisodeParser:
         <h2>Key Points</h2><p>Nothing.</p>
         <h2>Disclaimer</h2></body></html>
         """
-        data = parse_episode_html(html=html)
+        mock_resp = MagicMock()
+        mock_resp.text = html
+        mock_resp.raise_for_status = MagicMock()
+        with patch("scraper.episode.requests.get", return_value=mock_resp):
+            data = parse_episode_html(EPISODE_397_URL)
         assert data["transcript"] == ""
         assert data["title"] == "No Transcript Episode"
 
@@ -77,7 +88,11 @@ class TestEpisodeParser:
         <p>Host: Hello world.</p>
         <h2>Disclaimer</h2></body></html>
         """
-        data = parse_episode_html(html=html)
+        mock_resp = MagicMock()
+        mock_resp.text = html
+        mock_resp.raise_for_status = MagicMock()
+        with patch("scraper.episode.requests.get", return_value=mock_resp):
+            data = parse_episode_html(EPISODE_397_URL)
         assert "Hello world" in data["transcript"]
         assert data["date_ymd"] == "2019-01-05"
 
