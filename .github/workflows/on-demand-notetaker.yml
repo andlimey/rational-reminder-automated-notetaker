@@ -1,0 +1,44 @@
+name: On-demand Notetaker
+
+on:
+  push:
+    paths:
+      - "data/episodes_to_process.txt"
+    branches:
+      - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTES_EMAIL_TO: ${{ secrets.NOTES_EMAIL_TO }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: python run.py
+
+      - name: Commit state and clear want list
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo -n "" > data/episodes_to_process.txt
+          git add data/processed_episodes.json data/episodes_to_process.txt
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "chore: update state and clear episodes want list [skip ci]"
+            git push
+          fi
