@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import time
 
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,9 +17,7 @@ def _get_client(api_key: str | None = None):
     api_key = api_key or os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set in environment or .env")
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel(DEFAULT_MODEL)
-
+    return genai.Client(api_key=api_key)
 
 def _build_prompt(
     title: str,
@@ -70,13 +68,13 @@ def generate_notes(
     if not transcript or not transcript.strip():
         return "*No transcript available for this episode.*"
     prompt = _build_prompt(title, date_ymd, transcript, key_points, episode_url)
-    model = _get_client(api_key)
+    client = _get_client(api_key)
 
     max_retries = 5
     last_error = None
     for attempt in range(max_retries):
         try:
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(model=DEFAULT_MODEL, contents=prompt)
             if not response or not response.text:
                 return "*Failed to generate notes.*"
             return response.text.strip()

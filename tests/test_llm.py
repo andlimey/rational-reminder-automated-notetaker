@@ -29,9 +29,11 @@ def test_build_prompt_includes_episode_url_when_provided():
 @patch("llm.notetaker._get_client")
 @patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)
 def test_generate_notes_returns_mock_response(mock_get_client):
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value = MagicMock(text="## Summary\n\nGreat episode.")
-    mock_get_client.return_value = mock_model
+    mock_models = MagicMock()
+    mock_models.generate_content.return_value = MagicMock(text="## Summary\n\nGreat episode.")
+    mock_client = MagicMock()
+    mock_client.models = mock_models
+    mock_get_client.return_value = mock_client
 
     result = generate_notes(
         title="Test Episode",
@@ -41,19 +43,21 @@ def test_generate_notes_returns_mock_response(mock_get_client):
     )
     assert "## Summary" in result
     assert "Great episode" in result
-    mock_model.generate_content.assert_called_once()
-    call_args = mock_model.generate_content.call_args[0][0]
-    assert "Test Episode" in call_args
-    assert "2026-02-19" in call_args
-    assert "Hello" in call_args
+    mock_models.generate_content.assert_called_once()
+    call_kwargs = mock_models.generate_content.call_args[1]
+    assert call_kwargs.get("contents") and "Test Episode" in call_kwargs["contents"]
+    assert "2026-02-19" in call_kwargs["contents"]
+    assert "Hello" in call_kwargs["contents"]
 
 
 @patch("llm.notetaker._get_client")
 @patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)
 def test_generate_notes_passes_episode_url_into_prompt(mock_get_client):
-    mock_model = MagicMock()
-    mock_model.generate_content.return_value = MagicMock(text="## Summary\n\nDone.")
-    mock_get_client.return_value = mock_model
+    mock_models = MagicMock()
+    mock_models.generate_content.return_value = MagicMock(text="## Summary\n\nDone.")
+    mock_client = MagicMock()
+    mock_client.models = mock_models
+    mock_get_client.return_value = mock_client
     episode_url = "https://rationalreminder.ca/podcast/397"
     generate_notes(
         title="Ep 397",
@@ -62,8 +66,8 @@ def test_generate_notes_passes_episode_url_into_prompt(mock_get_client):
         episode_url=episode_url,
         api_key="fake",
     )
-    call_args = mock_model.generate_content.call_args[0][0]
-    assert episode_url in call_args
+    call_kwargs = mock_models.generate_content.call_args[1]
+    assert episode_url in call_kwargs.get("contents", "")
 
 
 @patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False)
@@ -75,14 +79,16 @@ def test_generate_notes_empty_transcript_returns_placeholder():
 
 @patch("llm.notetaker._get_client")
 def test_generate_notes_retries_on_rate_limit_then_succeeds(mock_get_client):
-    mock_model = MagicMock()
-    mock_get_client.return_value = mock_model
-    mock_model.generate_content.side_effect = [
+    mock_models = MagicMock()
+    mock_models.generate_content.side_effect = [
         Exception("429 Resource Exhausted"),
         Exception("429 Resource Exhausted"),
         MagicMock(text="## Summary\n\nRetry success."),
     ]
+    mock_client = MagicMock()
+    mock_client.models = mock_models
+    mock_get_client.return_value = mock_client
     with patch.dict("os.environ", {"RETURN_TEST_NOTES": ""}, clear=False):
         result = generate_notes("Title", "2026-01-01", "Transcript.", api_key="fake")
     assert "Retry success" in result
-    assert mock_model.generate_content.call_count == 3
+    assert mock_models.generate_content.call_count == 3
