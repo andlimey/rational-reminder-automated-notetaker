@@ -14,6 +14,14 @@ Automatically generates notes from [Rational Reminder](https://rationalreminder.
 
 You can process a **want-list** of episode slugs, or leave the list empty to process only the **latest** episode each run.
 
+### Sample Email from Resend
+
+![Email from Resend](static/resend_email.png)
+
+### Sample Generated Notes
+
+![Generated Notes](static/generated_notes.png)
+
 ## Requirements
 
 - Python 3.9+
