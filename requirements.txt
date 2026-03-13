@@ -1,5 +1,7 @@
 beautifulsoup4
 google-genai
+linkify-it-py
+markdown-it-py
 python-dotenv
 requests
 resend
